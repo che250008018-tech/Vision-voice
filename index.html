@@ -1,0 +1,888 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisionVoice - AI Voice Assistant</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f2f5fa;color:#172b45}
+header{background:#102b50;color:white;padding:17px 5%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{font-size:24px;font-weight:bold}
+.logo span{color:#62b5ff}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+button{padding:11px 16px;border:0;border-radius:8px;cursor:pointer;font-weight:bold}
+nav button{background:transparent;color:white}
+nav button:hover{background:#25466e}
+.primary{background:#1769d2;color:white}
+.secondary{background:#e4edfa;color:#1556a4}
+.danger{background:#ffe8e8;color:#b52c2c}
+.container{max-width:1150px;margin:30px auto;padding:0 17px}
+.card{background:white;padding:23px;border-radius:13px;margin-bottom:20px;box-shadow:0 4px 20px #102b5010}
+h1,h2,h3{margin-bottom:14px}
+p{color:#5c6c80;line-height:1.6;margin-bottom:12px}
+.hidden{display:none!important}
+.hero{background:linear-gradient(120deg,#102b50,#1769d2);padding:55px 25px;text-align:center;color:white;border-radius:16px}
+.hero h1{font-size:38px}
+.hero p{color:#e2edff;max-width:650px;margin:15px auto 22px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px}
+.feature{background:white;padding:22px;border-radius:12px}
+.form{max-width:440px;margin:35px auto}
+.field{margin:15px 0}
+label{display:block;font-weight:bold;margin-bottom:7px;font-size:14px}
+input,select{width:100%;padding:12px;border:1px solid #ccd5e2;border-radius:8px;background:white}
+input:focus,select:focus{outline:2px solid #9ccaff}
+.full{width:100%;margin-top:10px}
+.link{color:#1769d2;cursor:pointer;font-weight:bold}
+.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}
+.camera{background:#071629;position:relative;border-radius:12px;overflow:hidden;min-height:270px}
+video{width:100%;display:block;max-height:500px;object-fit:contain}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.placeholder{color:white;text-align:center;padding:110px 10px}
+.controls{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.status{background:#edf4ff;color:#1756a5;padding:12px;border-radius:8px;margin:12px 0;line-height:1.5}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.stat{background:#edf4fc;padding:15px;text-align:center;border-radius:9px}
+.stat strong{display:block;color:#1769d2;font-size:23px;margin-bottom:5px}
+.tags{display:flex;gap:8px;flex-wrap:wrap}
+.tag{background:#eaf2ff;color:#1556a4;padding:8px 12px;border-radius:20px;font-size:13px}
+.history{max-height:180px;overflow:auto}
+.history div{padding:9px;border-bottom:1px solid #eee;font-size:13px}
+.notice{background:#fff5dd;color:#72520b;padding:14px;border-radius:9px;line-height:1.5;margin-top:15px}
+footer{text-align:center;padding:25px;color:#758399}
+@media(max-width:750px){
+.grid{grid-template-columns:1fr}
+.hero h1{font-size:29px}
+.stats{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+ <div class="logo">Vision<span>Voice</span></div>
+ <nav id="nav" class="hidden">
+  <button onclick="page('dashboard')">Dashboard</button>
+  <button onclick="page('about')">About</button>
+  <button onclick="page('manual')">How to Use</button>
+  <button onclick="logout()">Sign Out</button>
+ </nav>
+</header>
+
+<section id="home" class="container">
+ <div class="hero">
+  <h1>See the World Through Voice</h1>
+  <p>An AI-powered assistant that identifies supported everyday objects using your camera and describes them through voice assistance.</p>
+  <button class="primary" onclick="page('signup')">Create Account</button>
+  <button class="secondary" onclick="page('login')">Sign In</button>
+ </div>
+ <div class="features">
+  <div class="feature"><h3>AI Detection</h3><p>Recognizes supported everyday objects through your camera.</p></div>
+  <div class="feature"><h3>Voice Assistance</h3><p>Speaks detected object names.</p></div>
+  <div class="feature"><h3>Location Sharing</h3><p>Share your current GPS location with a contact.</p></div>
+ </div>
+</section>
+
+<section id="signup" class="container hidden">
+ <div class="card form">
+  <h2>Create Account</h2>
+  <p>All fields are compulsory.</p>
+  <form id="signupForm" onsubmit="register(event)">
+   <div class="field"><label>Full Name *</label><input id="regName" required autocomplete="name"></div>
+   <div class="field"><label>Email Address *</label><input id="regEmail" type="email" required autocomplete="email"></div>
+   <div class="field"><label>Password *</label><input id="regPass" type="password" minlength="6" required autocomplete="new-password"></div>
+   <div class="field"><label>Confirm Password *</label><input id="regConfirm" type="password" required autocomplete="new-password"></div>
+   <button class="primary full">Create Account</button>
+  </form>
+  <p>Already registered? <span class="link" onclick="page('login')">Sign In</span></p>
+  <p><span class="link" onclick="page('home')">Back to Home</span></p>
+ </div>
+</section>
+
+<section id="login" class="container hidden">
+ <div class="card form">
+  <h2>Sign In</h2>
+  <form id="loginForm" onsubmit="login(event)">
+   <div class="field"><label>Email Address *</label><input id="loginEmail" type="email" required autocomplete="email"></div>
+   <div class="field"><label>Password *</label><input id="loginPass" type="password" required autocomplete="current-password"></div>
+   <button class="primary full">Sign In</button>
+  </form>
+  <p>New user? <span class="link" onclick="page('signup')">Create Account</span></p>
+  <p><span class="link" onclick="page('home')">Back to Home</span></p>
+ </div>
+</section>
+
+<section id="dashboard" class="container hidden">
+ <div class="card">
+  <h2>Welcome, <span id="userName">User</span></h2>
+  <p>Your AI Voice Navigation Dashboard</p>
+  <div id="modelStatus" class="status">AI model has not been loaded yet.</div>
+ </div>
+
+ <div class="grid">
+  <div class="card">
+   <h2>Live Camera</h2>
+   <div class="field">
+    <label>Select Camera</label>
+    <select id="cameraChoice">
+     <option value="environment">Rear Camera</option>
+     <option value="user">Front Camera</option>
+    </select>
+   </div>
+   <div class="camera">
+    <video id="video" autoplay muted playsinline class="hidden"></video>
+    <canvas id="canvas"></canvas>
+    <div id="placeholder" class="placeholder">Camera is currently off</div>
+   </div>
+   <div class="controls">
+    <button class="primary" onclick="startCamera()">Start Camera</button>
+    <button class="danger" onclick="stopCamera()">Stop Camera</button>
+    <button class="secondary" onclick="describeScene()">Describe Scene</button>
+   </div>
+   <div class="field">
+    <label>Mirror Preview</label>
+    <select id="mirror" onchange="drawBoxes()">
+     <option value="no">Normal</option>
+     <option value="yes">Mirrored</option>
+    </select>
+   </div>
+  </div>
+
+  <div class="card">
+   <h2>Detection Summary</h2>
+   <div class="stats">
+    <div class="stat"><strong id="objectCount">0</strong>Objects</div>
+    <div class="stat"><strong id="totalCount">0</strong>Detections</div>
+    <div class="stat"><strong id="voiceStatus">Off</strong>Voice</div>
+   </div>
+   <h3 style="margin-top:22px">Detected Objects</h3>
+   <div id="tags" class="tags">No objects detected</div>
+   <h3 style="margin-top:22px">Voice Settings</h3>
+   <div class="field">
+    <label>Voice Language</label>
+    <select id="language">
+     <option value="en-IN">English India</option>
+     <option value="te-IN">Telugu</option>
+     <option value="en-US">English US</option>
+    </select>
+   </div>
+   <div class="field">
+    <label>Speech Speed</label>
+    <select id="speed">
+     <option value="0.8">Slow</option>
+     <option value="1" selected>Normal</option>
+     <option value="1.2">Fast</option>
+    </select>
+   </div>
+   <div class="field">
+    <label>Detection Confidence</label>
+    <select id="confidence">
+     <option value="0.4">40%</option>
+     <option value="0.5" selected>50%</option>
+     <option value="0.65">65%</option>
+     <option value="0.75">75%</option>
+    </select>
+   </div>
+   <div class="field">
+    <label><input type="checkbox" id="autoVoice" checked style="width:auto"> Automatic voice announcements</label>
+   </div>
+   <div class="controls">
+    <button class="secondary" onclick="testVoice()">Test Voice</button>
+    <button class="danger" onclick="stopVoice()">Stop Voice</button>
+   </div>
+  </div>
+ </div>
+
+ <div class="card">
+  <h2>Location Sharing</h2>
+  <p>Get your current GPS location and share a Google Maps link with a trusted contact.</p>
+  <div id="locationStatus" class="status">Location has not been requested.</div>
+  <div class="controls">
+   <button class="primary" onclick="getLocation()">Get My Location</button>
+   <button class="secondary" onclick="shareLocation()">Share Location</button>
+   <button class="secondary" onclick="openMap()">Open in Google Maps</button>
+  </div>
+  <div class="field">
+   <label>Location Updates</label>
+   <div class="controls">
+    <button class="primary" onclick="startLocationUpdates()">Start Updates</button>
+    <button class="danger" onclick="stopLocationUpdates()">Stop Updates</button>
+   </div>
+   <p id="updateStatus">Location updates are off.</p>
+  </div>
+  <div class="notice">
+   Location access is optional. Your browser will ask for permission. Share your location only with people you trust. The update feature refreshes your location on this device; it does not automatically transmit a live tracking link to another person.
+  </div>
+ </div>
+
+ <div class="card">
+  <h2>Detection History</h2>
+  <div id="history" class="history">No history yet.</div>
+ </div>
+
+ <div class="notice">
+  <strong>Safety:</strong> This is an experimental assistant. It can miss objects and make incorrect predictions. It does not reliably measure distance or identify every hazard. Do not use it instead of a white cane, guide dog, or other established mobility support.
+ </div>
+</section>
+
+<section id="about" class="container hidden">
+ <div class="card">
+  <h1>About VisionVoice</h1>
+  <p>VisionVoice is an AI-based voice assistance project. It uses camera-based object detection and speech output to help users understand some objects in their surroundings.</p>
+  <h2>Project Aim</h2>
+  <p>To develop a simple application combining computer vision and voice technology.</p>
+  <h2>Technologies Used</h2>
+  <p>HTML, CSS, JavaScript, TensorFlow.js, COCO-SSD, Web Speech API and Geolocation API.</p>
+  <h2>Location Sharing</h2>
+  <p>The location feature uses browser GPS permission to create a Google Maps link that the user can share.</p>
+ </div>
+</section>
+
+<section id="manual" class="container hidden">
+ <div class="card">
+  <h1>How to Use VisionVoice</h1>
+  <h3>1. Create an Account</h3><p>Enter your name, email and password. All fields are compulsory.</p>
+  <h3>2. Sign In</h3><p>Use your registered email and password.</p>
+  <h3>3. Start Camera</h3><p>Choose the front or rear camera and allow browser camera permission.</p>
+  <h3>4. Detect Objects</h3><p>Point your camera towards supported everyday objects.</p>
+  <h3>5. Listen</h3><p>Enable automatic announcements or press Describe Scene.</p>
+  <h3>6. Share Location</h3><p>Press Get My Location, then Share Location. Choose a contact in your sharing menu or use the WhatsApp option if available.</p>
+  <h3>7. Sign Out</h3><p>Stop the camera and sign out when finished.</p>
+ </div>
+</section>
+
+<footer>VisionVoice | AI-Based Voice Navigation Assistant</footer>
+
+<!-- LOAD SUPABASE BEFORE THE MAIN SCRIPT -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="script.js"></script>
+
+<script>
+const $ = id => document.getElementById(id);
+const pageNames = ["home","signup","login","dashboard","about","manual"];
+
+let model = null;
+let modelPromise = null;
+let stream = null;
+let running = false;
+let detecting = false;
+let predictions = [];
+let total = 0;
+let lastSpoken = {};
+let historyList = [];
+let currentLocation = null;
+let locationWatch = null;
+
+// PAGE NAVIGATION
+
+function page(name) {
+    pageNames.forEach(p => $(p).classList.add("hidden"));
+    $(name).classList.remove("hidden");
+
+    if (["home", "signup", "login"].includes(name)) {
+        $("nav").classList.add("hidden");
+    }
+}
+
+ 
+async function register(e) {
+    e.preventDefault();
+
+    console.log("Signup function started!");
+
+    const name = $("regName").value.trim();
+    const email = $("regEmail").value.trim().toLowerCase();
+    const password = $("regPass").value;
+    const confirm = $("regConfirm").value;
+
+    if (!name || !email || !password || !confirm) {
+        alert("All fields are compulsory.");
+        return;
+    }
+
+    if (password.length < 6) {
+        alert("Password must contain at least 6 characters.");
+        return;
+    }
+
+    if (password !== confirm) {
+        alert("Passwords do not match.");
+        return;
+    }
+
+    try {
+        console.log("Sending signup request to Supabase...");
+
+        const { data, error } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                data: {
+                    full_name: name
+                },
+                emailRedirectTo: window.location.origin
+            }
+        });
+
+        console.log("Signup response:", data);
+        console.log("Signup error:", error);
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data.user) {
+            throw new Error("Supabase did not return a user.");
+        }
+
+        $("signupForm").reset();
+
+        if (data.session) {
+            alert("Account created successfully!");
+            showDashboard({ name: name, email: email });
+        } else {
+            alert("Signup successful! Please check your email for confirmation.");
+            page("login");
+        }
+
+    } catch (error) {
+        console.error("Signup failed:", error);
+        alert("Signup Error: " + error.message);
+    }
+}
+
+
+
+
+async function login(e) {
+ e.preventDefault();
+
+ const email = $("loginEmail").value.trim().toLowerCase();
+ const password = $("loginPass").value;
+
+ if (!email || !password) {
+  alert("Email and password are compulsory.");
+  return;
+ }
+
+ try {
+  const {data,error} = await supabaseClient.auth.signInWithPassword({
+   email,
+   password
+  });
+
+  if (error) throw error;
+
+  const user = data.user;
+  const {data:profile} = await supabaseClient
+   .from("profiles")
+   .select("full_name")
+   .eq("id",user.id)
+   .maybeSingle();
+
+  const name = profile?.full_name || user.user_metadata?.full_name || "User";
+
+  $("loginForm").reset();
+  showDashboard({name,email});
+  alert("Login successful!");
+ } catch(error) {
+  alert("Login error: "+error.message);
+ }
+}
+
+function showDashboard(user) {
+ $("userName").textContent = user.name;
+ $("nav").classList.remove("hidden");
+ page("dashboard");
+}
+
+async function logout() {
+ stopCamera();
+ stopVoice();
+ stopLocationUpdates();
+
+ const {error} = await supabaseClient.auth.signOut();
+
+ if (error) {
+  alert("Sign out error: "+error.message);
+  return;
+ }
+
+ $("nav").classList.add("hidden");
+ page("home");
+ alert("Signed out successfully.");
+}
+
+async function restoreLogin() {
+ const {data,error} = await supabaseClient.auth.getSession();
+
+ if (error) {
+  console.error("Session error:",error.message);
+  page("home");
+  return;
+ }
+
+ const session = data.session;
+
+ if (!session) {
+  page("home");
+  return;
+ }
+
+ const user = session.user;
+
+ const {data:profile} = await supabaseClient
+  .from("profiles")
+  .select("full_name")
+  .eq("id",user.id)
+  .maybeSingle();
+
+ showDashboard({
+  name:profile?.full_name || user.user_metadata?.full_name || "User",
+  email:user.email
+ });
+}
+
+// AI MODEL
+
+async function loadModel() {
+ if (model) return model;
+ if (modelPromise) return modelPromise;
+
+ $("modelStatus").textContent = "Loading AI model. Please wait...";
+
+ modelPromise = (async()=>{
+  if (!window.tf || !window.cocoSsd) {
+   throw new Error("AI libraries did not load. Check your internet.");
+  }
+
+  await tf.ready();
+  model = await cocoSsd.load();
+  $("modelStatus").textContent = "AI model ready.";
+  return model;
+ })();
+
+ try {
+  return await modelPromise;
+ } catch(error) {
+  modelPromise = null;
+  model = null;
+  $("modelStatus").textContent = "AI model error: "+error.message;
+  throw error;
+ }
+}
+
+// CAMERA
+
+async function getCameraStream() {
+ const choice = $("cameraChoice").value;
+
+ const options = [
+  {video:{facingMode:{ideal:choice}},audio:false},
+  {video:{facingMode:{ideal:"user"}},audio:false},
+  {video:true,audio:false}
+ ];
+
+ let lastError;
+
+ for (const option of options) {
+  try {
+   return await navigator.mediaDevices.getUserMedia(option);
+  } catch(error) {
+   lastError = error;
+   if (error.name==="NotAllowedError" || error.name==="SecurityError") break;
+  }
+ }
+
+ throw lastError || new Error("No camera could be opened.");
+}
+
+async function startCamera() {
+ if (running) return;
+
+ if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+  alert("Camera is not available. Use Chrome on localhost or HTTPS.");
+  return;
+ }
+
+ $("modelStatus").textContent = "Preparing camera and AI model...";
+
+ try {
+  const loadedModel = await loadModel();
+  stream = await getCameraStream();
+
+  const video = $("video");
+  video.srcObject = stream;
+
+  await new Promise((resolve,reject)=>{
+   if (video.readyState>=2) return resolve();
+   video.onloadedmetadata = resolve;
+   video.onerror = reject;
+  });
+
+  await video.play();
+
+  $("placeholder").classList.add("hidden");
+  video.classList.remove("hidden");
+
+  running = true;
+  predictions = [];
+  $("modelStatus").textContent = "Camera running. Detecting objects...";
+  detectLoop(loadedModel);
+ } catch(error) {
+  stopCamera();
+  $("modelStatus").textContent = "Camera error: "+error.message;
+
+  if (error.name==="NotAllowedError" || error.name==="PermissionDeniedError") {
+   alert("Camera permission denied. Click the camera icon near the browser address bar and allow camera access.");
+  } else if (error.name==="NotFoundError" || error.name==="DevicesNotFoundError") {
+   alert("No camera was found. Connect or enable a camera and try again.");
+  } else if (error.name==="NotReadableError" || error.name==="TrackStartError") {
+   alert("Camera is busy. Close other apps using the camera and try again.");
+  } else {
+   alert("Could not start camera: "+error.message);
+  }
+ }
+}
+
+function stopCamera() {
+ running = false;
+ detecting = false;
+
+ if (stream) {
+  stream.getTracks().forEach(track=>track.stop());
+  stream = null;
+ }
+
+ $("video").pause();
+ $("video").srcObject = null;
+ $("video").classList.add("hidden");
+ $("placeholder").classList.remove("hidden");
+
+ const canvas = $("canvas");
+ canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+ $("modelStatus").textContent = "Camera stopped.";
+}
+
+// DETECTION
+
+async function detectLoop(activeModel) {
+ if (!running || detecting) return;
+
+ detecting = true;
+
+ try {
+  const video = $("video");
+
+  if (video.readyState>=2 && video.videoWidth>0) {
+   const results = await activeModel.detect(video);
+
+   if (running) {
+    predictions = results.filter(p=>p.score>=Number($("confidence").value));
+    total += predictions.length;
+    drawBoxes();
+    updateObjects();
+    announceObject();
+   }
+  }
+ } catch(error) {
+  $("modelStatus").textContent = "Detection error: "+error.message;
+ } finally {
+  detecting = false;
+ }
+
+ if (running) setTimeout(()=>detectLoop(activeModel),700);
+}
+
+function drawBoxes() {
+ const video = $("video");
+ const canvas = $("canvas");
+
+ if (!running || !video.videoWidth) return;
+
+ canvas.width = video.videoWidth;
+ canvas.height = video.videoHeight;
+
+ const ctx = canvas.getContext("2d");
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ const mirrored = $("mirror").value==="yes";
+
+ if (mirrored) {
+  ctx.save();
+  ctx.translate(canvas.width,0);
+  ctx.scale(-1,1);
+ }
+
+ predictions.forEach(p=>{
+  const [x,y,w,h] = p.bbox;
+  const bx = mirrored ? canvas.width-x-w : x;
+  const label = p.class+" "+Math.round(p.score*100)+"%";
+
+  ctx.strokeStyle="#32e88b";
+  ctx.lineWidth=4;
+  ctx.strokeRect(bx,y,w,h);
+
+  ctx.font="bold 18px Arial";
+  const width=ctx.measureText(label).width;
+
+  ctx.fillStyle="#1769d2";
+  ctx.fillRect(bx,Math.max(0,y-27),width+12,27);
+  ctx.fillStyle="white";
+  ctx.fillText(label,bx+6,Math.max(19,y-8));
+ });
+
+ if (mirrored) ctx.restore();
+}
+
+function position(p) {
+ const [x,y,w] = p.bbox;
+ let center = x+w/2;
+
+ if ($("mirror").value==="yes") {
+  center = $("video").videoWidth-center;
+ }
+
+ if (center<$("video").videoWidth/3) return "left";
+ if (center>$("video").videoWidth*2/3) return "right";
+ return "center";
+}
+
+function updateObjects() {
+ $("objectCount").textContent = predictions.length;
+ $("totalCount").textContent = total;
+
+ const tags = $("tags");
+ tags.replaceChildren();
+
+ if (!predictions.length) {
+  tags.textContent = "No supported objects detected.";
+  return;
+ }
+
+ [...new Set(predictions.map(p=>p.class))].forEach(name=>{
+  const span = document.createElement("span");
+  span.className = "tag";
+  span.textContent = name;
+  tags.appendChild(span);
+ });
+
+ predictions.forEach(p=>{
+  const text = p.class+" ("+Math.round(p.score*100)+"%) - "+position(p);
+  historyList.unshift(new Date().toLocaleTimeString()+" | "+text);
+ });
+
+ historyList = historyList.slice(0,15);
+ $("history").replaceChildren();
+
+ historyList.forEach(item=>{
+  const div = document.createElement("div");
+  div.textContent = item;
+  $("history").appendChild(div);
+ });
+}
+
+// VOICE
+
+function speak(text) {
+ if (!("speechSynthesis" in window)) {
+  alert("Your browser does not support voice assistance.");
+  return;
+ }
+
+ speechSynthesis.cancel();
+
+ const message = new SpeechSynthesisUtterance(text);
+ message.lang = $("language").value;
+ message.rate = Number($("speed").value);
+
+ const available = speechSynthesis.getVoices();
+ const voice = available.find(v=>v.lang.toLowerCase().startsWith(message.lang.toLowerCase()));
+
+ if (voice) message.voice = voice;
+
+ speechSynthesis.speak(message);
+ $("voiceStatus").textContent = "On";
+}
+
+function announceObject() {
+ if (!$("autoVoice").checked || !predictions.length) return;
+
+ const p = predictions[0];
+ const side = position(p);
+ const key = p.class+"-"+side;
+ const now = Date.now();
+
+ if (lastSpoken[key] && now-lastSpoken[key]<8000) return;
+
+ lastSpoken[key] = now;
+ speak(p.class+" detected near the "+side+".");
+}
+
+function describeScene() {
+ if (!predictions.length) {
+  speak("No supported objects detected right now.");
+  return;
+ }
+
+ const words = predictions.map(p=>p.class+" near the "+position(p));
+ speak("Detected objects: "+words.join(", "));
+}
+
+function testVoice() {
+ speak("Welcome to VisionVoice. Voice assistance is working.");
+}
+
+function stopVoice() {
+ if ("speechSynthesis" in window) speechSynthesis.cancel();
+ $("voiceStatus").textContent = "Off";
+}
+
+// LOCATION
+
+function getLocation() {
+ if (!navigator.geolocation) {
+  $("locationStatus").textContent = "Geolocation is not supported by this browser.";
+  return;
+ }
+
+ $("locationStatus").textContent = "Getting your GPS location...";
+
+ navigator.geolocation.getCurrentPosition(
+  position=>{
+   currentLocation = {
+    lat:position.coords.latitude,
+    lng:position.coords.longitude,
+    accuracy:position.coords.accuracy
+   };
+   showLocation();
+  },
+  error=>{
+   const messages = {
+    1:"Location permission denied. Allow location access in browser settings.",
+    2:"Your location is currently unavailable. Check GPS or internet.",
+    3:"Location request timed out. Please try again."
+   };
+   $("locationStatus").textContent = messages[error.code] || "Could not get location.";
+  },
+  {enableHighAccuracy:true,timeout:20000,maximumAge:0}
+ );
+}
+
+function showLocation() {
+ if (!currentLocation) return;
+
+ const {lat,lng,accuracy} = currentLocation;
+
+ $("locationStatus").textContent =
+  "Latitude: "+lat.toFixed(6)+
+  " | Longitude: "+lng.toFixed(6)+
+  " | Accuracy: approximately "+Math.round(accuracy)+" metres.";
+}
+
+function mapLink() {
+ if (!currentLocation) return "";
+ return "https://www.google.com/maps?q="+currentLocation.lat+","+currentLocation.lng;
+}
+
+async function shareLocation() {
+ if (!currentLocation) {
+  alert("First click Get My Location.");
+  return;
+ }
+
+ const url = mapLink();
+ const message = "My current location: "+url;
+
+ try {
+  if (navigator.share) {
+   await navigator.share({
+    title:"My VisionVoice Location",
+    text:"Here is my current location.",
+    url:url
+   });
+  } else {
+   const whatsapp = "https://wa.me/?text="+encodeURIComponent(message);
+   window.open(whatsapp,"_blank");
+  }
+ } catch(error) {
+  if (error.name!=="AbortError") {
+   alert("Sharing was not completed. You can open Google Maps and copy the location link.");
+  }
+ }
+}
+
+function openMap() {
+ if (!currentLocation) {
+  alert("First click Get My Location.");
+  return;
+ }
+ window.open(mapLink(),"_blank");
+}
+
+// LOCATION UPDATES
+
+function startLocationUpdates() {
+ if (!navigator.geolocation) {
+  alert("Geolocation is not supported.");
+  return;
+ }
+
+ if (locationWatch!==null) return;
+
+ $("updateStatus").textContent = "Requesting location updates...";
+
+ locationWatch = navigator.geolocation.watchPosition(
+  pos=>{
+   currentLocation = {
+    lat:pos.coords.latitude,
+    lng:pos.coords.longitude,
+    accuracy:pos.coords.accuracy
+   };
+
+   showLocation();
+   $("updateStatus").textContent = "Location is updating on this device. Share again to send the latest location.";
+  },
+  error=>{
+   $("updateStatus").textContent = "Location update error: "+error.message;
+   stopLocationUpdates();
+  },
+  {enableHighAccuracy:true,maximumAge:3000,timeout:20000}
+ );
+}
+
+function stopLocationUpdates() {
+ if (locationWatch!==null) {
+  navigator.geolocation.clearWatch(locationWatch);
+  locationWatch = null;
+ }
+
+ $("updateStatus").textContent = "Location updates are off.";
+}
+
+// INITIALIZE
+
+// INITIALIZE
+
+window.addEventListener("load", restoreLogin);
+
+window.addEventListener("beforeunload", () => {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+
+    if (locationWatch !== null) {
+        navigator.geolocation.clearWatch(locationWatch);
+    }
+});
+
+</script>
+
+</body>
+</html>
